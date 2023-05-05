@@ -1,0 +1,218 @@
+#include <iostream>
+#include <vector>
+#include <string>
+#include <fstream>
+
+class Item
+{
+private:
+    std::string name;
+    std::string barcode;
+    double price;
+
+public:
+    Item(const std::string &_name, const std::string &_barcode, double _price)
+    {
+        this->name = _name;
+        this->barcode = _barcode;
+        this->price = _price;
+    }
+
+    virtual void print() const = 0;
+
+    virtual Item *clone() = 0;
+
+    virtual void readFromFile(std::ifstream& is) = 0; 
+
+    ~Item() = default;
+
+    void set_name(const std::string& _name)
+    {
+        this->name = _name;
+    }
+    void set_barcode(const std::string& _barcode)
+    {
+        this->barcode = _barcode;
+    }
+    void set_price(double _price)
+    {
+        this->price = _price;
+    }
+};
+
+void Item::print() const
+{
+    std::cout << name << " " << barcode << " " << price << " ";
+}
+
+class Monitor : public Item
+{
+private:
+    double displaySize;
+    double energyComsumation;
+
+public:
+    Monitor(const std::string &_name, const std::string &_barcode, double _price,
+            double _displaySize, double _energyComsumation) : Item(_name, _barcode, _price), displaySize(_displaySize), energyComsumation(_energyComsumation){};
+
+    void print() const
+    {
+        Item::print();
+        std::cout << displaySize << " " << energyComsumation;
+    }
+
+    void readFromFile(std::ifstream& is)
+    {
+        std::string _name;
+        std::string _barcode;
+        double _price;
+        is >> _name >> _barcode >> _price >> displaySize >> energyComsumation; 
+        set_name(_name);
+        set_barcode(_barcode);
+        set_price(_price);
+    }
+
+    Monitor *clone()
+    {
+        return new Monitor(*this);
+    }
+};
+
+class Desk : public Item
+{
+private:
+    double workingArea;
+    bool can_change_high;
+    std::string material;
+
+public:
+    Desk(const std::string &_name, const std::string &_barcode, double _price,
+         double _workingArea, bool _can_change_high, const std::string &_material) : Item(_name, _barcode, _price), can_change_high(_can_change_high), material(_material){};
+
+    void print() const
+    {
+        Item::print();
+        std::cout << workingArea << " " << std::boolalpha << can_change_high << " " << material;
+    }
+
+    Desk *clone()
+    {
+        return new Desk(*this);
+    }
+
+    void readFromFile(std::ifstream& is)
+    {
+        std::string _name;
+        std::string _barcode;
+        double _price;
+        is >> _name >> _barcode >> _price >> workingArea >> can_change_high >> material; 
+        set_name(_name);
+        set_barcode(_barcode);
+        set_price(_price);
+    }
+};
+
+class Shoping_cart
+{
+private:
+    std::vector<Item *> shoping_cart;
+
+    void copy(const Shoping_cart& other)
+    {
+        for(size_t i = 0; i < other.shoping_cart.size(); i++)
+        {
+            // this->shoping_cart[i] = other.shoping_cart[i]->clone();
+            shoping_cart.push_back(other.shoping_cart[i]->clone()); 
+        }
+    } 
+
+public:
+    Shoping_cart(){};
+
+    Shoping_cart(const Shoping_cart& other)
+    {
+        copy(other);
+    }
+
+    Shoping_cart& operator=(const Shoping_cart& other)
+    {
+        if(this != &other)
+        {
+            for (std::size_t i = 0; i < shoping_cart.size(); i++)
+            {
+                delete this->shoping_cart[i];
+            }
+            copy(other);
+        }
+        return *this; 
+    }
+
+    void add(Item *el)
+    {
+        shoping_cart.push_back(el->clone());
+    }
+
+    void print_cart()
+    {
+        for (std::size_t i = 0; i < shoping_cart.size(); i++)
+        {
+            shoping_cart[i]->print();
+            std::cout << '\n';
+        }
+    }
+
+    ~Shoping_cart()
+    {
+        for (std::size_t i = 0; i < shoping_cart.size(); i++)
+        {
+            delete shoping_cart[i];
+        }
+    }
+};
+
+Item *Factory(const std::string &el)
+{
+    if(el == "desk")
+    {
+        return new Desk("","",0,0,0,"");
+    }
+    if(el == "monitor")
+    {
+        return new Monitor("","",0,0,0);
+    }
+    return nullptr; 
+}
+
+void fileReader(std::ifstream& is, Shoping_cart& sh_cart){
+    while(is)
+    {
+        std::string type;
+        is >> type; 
+        Item * el = Factory(type);
+        el->readFromFile(is);
+        sh_cart.add(el); 
+        delete el; 
+        is.ignore(999, '\n');
+    }
+}   
+
+int main()
+{
+    std::ifstream is("shop.txt");
+
+    // Monitor m1("sony", "14453678712", 669, 69.420, 73);
+    // Monitor m2("samsung", "00589799899490", 900, 75, 90);
+    // Desk d1("duvar", "254367859", 350, 1, 0, "durvo");
+
+    Shoping_cart s;
+
+    fileReader(is, s); 
+
+    // s.add(&m1);
+    // s.add(&m2);
+    // s.add(&d1);
+
+    s.print_cart();
+
+    return 0;
+}
